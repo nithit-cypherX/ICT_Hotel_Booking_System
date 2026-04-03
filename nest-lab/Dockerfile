@@ -1,42 +1,56 @@
-# Stage 1: The Prep Area (Builder)
-FROM node:24-alpine AS builder
+# ─── STAGE 1: BUILDER ──────────────────────────────────────────
+FROM node:20-alpine AS builder
+
+# Prisma needs these on Alpine
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
+# Copy dependency files first (better caching)
 COPY package*.json ./
+
+# Install ALL deps (needed for build + prisma)
 RUN npm ci
 
+# Copy source code
 COPY . .
 
-# Generate the Prisma client before building the NestJS code
+# Generate Prisma client (uses version from package.json)
 RUN npx prisma generate
+
+# Build NestJS app
 RUN npm run build
 
-# Stage 2: The Serving Area (Production)
-FROM node:24-alpine
+
+# ─── STAGE 2: PRODUCTION ───────────────────────────────────────
+FROM node:20-alpine
+
+# Install required system libs again (runtime requirement)
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
-# Create a non-root user for security
+# Create non-root user (security best practice)
 RUN addgroup -S nestgroup && adduser -S nestuser -G nestgroup
 
+# Copy only what's needed
 COPY package*.json ./
 COPY prisma ./prisma
 
-# Step A: Install ALL dependencies (so we get YOUR exact Prisma version)
-# Step B: Generate the Prisma client
-# Step C: Prune (remove) the dev files to keep the image under 300MB!
-RUN npm ci && npx prisma generate && npm prune --omit=dev
+# Install deps → generate prisma → prune dev deps
+RUN npm ci \
+  && npx prisma generate \
+  && npm prune --omit=dev
 
-# NOW we set the environment to production!
+# Set production mode
 ENV NODE_ENV=production
 
-# Copy the compiled code from Stage 1
+# Copy compiled app
 COPY --from=builder /app/dist ./dist
 
-# Switch to the secure user
+# Switch to non-root user
 USER nestuser
+
 EXPOSE 3000
 
-# Point to the nested main.js path
 CMD ["node", "dist/src/main.js"]
