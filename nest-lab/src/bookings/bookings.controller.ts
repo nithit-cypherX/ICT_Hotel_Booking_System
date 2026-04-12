@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { JwtUser } from '../auth/interfaces/jwt-user.interface';
 
 @Controller('bookings')
 @UseGuards(JwtAuthGuard) // every booking route requires a valid JWT
@@ -32,7 +33,10 @@ export class BookingsController {
   // userId is sourced from the token — not the request body
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@CurrentUser() user: any, @Body() createBookingDto: CreateBookingDto) {
+  create(
+    @CurrentUser() user: JwtUser,
+    @Body() createBookingDto: CreateBookingDto,
+  ) {
     this.logger.log(
       `User #${user.id} is creating a booking for room #${createBookingDto.roomId}`,
     );
@@ -41,14 +45,14 @@ export class BookingsController {
 
   // FR-23, FR-25: admin gets all bookings, user gets only their own
   @Get()
-  findAll(@CurrentUser() user: any) {
+  findAll(@CurrentUser() user: JwtUser) {
     this.logger.log(`Bookings list requested by ${user.role} #${user.id}`);
     return this.bookingsService.findAll(user.id, user.role);
   }
 
   // FR-24, FR-25: admin can fetch any booking, user can only fetch their own
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
     this.logger.log(
       `Booking #${id} details requested by ${user.role} #${user.id}`,
     );
@@ -61,7 +65,7 @@ export class BookingsController {
   @Roles(Role.ADMIN)
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtUser,
     @Body() updateStatusDto: UpdateStatusDto,
   ) {
     this.logger.log(
@@ -75,7 +79,7 @@ export class BookingsController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
     this.logger.log(`Admin #${user.id} is deleting booking #${id}`);
     return this.bookingsService.remove(id, user.id);
   }

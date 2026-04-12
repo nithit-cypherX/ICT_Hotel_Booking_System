@@ -12,7 +12,10 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { CacheInterceptor } from '@nestjs/cache-manager';
+import { Throttle } from '@nestjs/throttler';
 import { Role } from '@prisma/client';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -22,6 +25,10 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('rooms')
+// Cache all GET responses in this controller — served from Redis after first request
+@UseInterceptors(CacheInterceptor)
+// Override global 30 req/min — rooms are DB-heavy so we allow more but still protect
+@Throttle({ default: { limit: 100, ttl: 60000 } })
 export class RoomsController {
   private readonly logger = new Logger(RoomsController.name);
 
@@ -41,6 +48,7 @@ export class RoomsController {
   // otherwise NestJS treats the literal word "search" as an id param
 
   // FR-27, FR-28, FR-29: public — guests can search available rooms
+  // CacheInterceptor caches this response automatically (GET route)
   @Get('search')
   search(
     @Query('checkIn') checkIn: string,
@@ -58,6 +66,7 @@ export class RoomsController {
   }
 
   // FR-12: public — guests can view the list of active rooms
+  // CacheInterceptor caches this response automatically (GET route)
   @Get()
   findAll() {
     this.logger.log('Fetching all active rooms');
@@ -65,6 +74,7 @@ export class RoomsController {
   }
 
   // FR-13: public — guests can view a specific room's details
+  // CacheInterceptor caches this response automatically (GET route)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Fetching details for room ID: ${id}`);
