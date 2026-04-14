@@ -17,7 +17,7 @@ export class CreateRoomDto {
   })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({
     description: 'Optional description of the room',
@@ -37,7 +37,7 @@ export class CreateRoomDto {
   @IsNumber()
   @Min(1, { message: 'Capacity must be at least 1' })
   @Type(() => Number)
-  capacity: number;
+  capacity!: number;
 
   @ApiProperty({
     description: 'Price per night in Thai Baht',
@@ -48,7 +48,7 @@ export class CreateRoomDto {
   @IsNumber()
   @Min(0, { message: 'Price per night cannot be negative' })
   @Type(() => Number)
-  pricePerNight: number;
+  pricePerNight!: number;
 
   @ApiPropertyOptional({
     description: 'URL path to the room image',

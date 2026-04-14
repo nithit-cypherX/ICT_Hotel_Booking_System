@@ -9,7 +9,7 @@ export class LoginDto {
   })
   @IsString()
   @IsNotEmpty()
-  identifier: string;
+  identifier!: string;
 
   @ApiProperty({
     description: 'Account password — minimum 8 characters',
@@ -19,5 +19,5 @@ export class LoginDto {
   })
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters' })
-  password: string;
+  password!: string;
 }

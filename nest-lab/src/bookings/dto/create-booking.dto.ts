@@ -13,7 +13,7 @@ export class CreateBookingDto {
   @IsInt()
   @Min(1)
   @Type(() => Number)
-  roomId: number;
+  roomId!: number;
 
   @ApiProperty({
     description: 'Check-in date and time in ISO 8601 format',
@@ -21,7 +21,7 @@ export class CreateBookingDto {
     type: String,
   })
   @IsDateString({}, { message: 'checkIn must be a valid ISO 8601 date string' })
-  checkIn: string;
+  checkIn!: string;
 
   @ApiProperty({
     description: 'Check-out date and time in ISO 8601 format',
@@ -32,5 +32,5 @@ export class CreateBookingDto {
     {},
     { message: 'checkOut must be a valid ISO 8601 date string' },
   )
-  checkOut: string;
+  checkOut!: string;
 }

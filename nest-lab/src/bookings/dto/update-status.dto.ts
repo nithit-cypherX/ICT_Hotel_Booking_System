@@ -12,5 +12,5 @@ export class UpdateStatusDto {
   @IsEnum(['APPROVED', 'CANCELLED', 'PAID'], {
     message: 'Status must be APPROVED, CANCELLED, or PAID',
   })
-  status: 'APPROVED' | 'CANCELLED' | 'PAID';
+  status!: 'APPROVED' | 'CANCELLED' | 'PAID';
 }
