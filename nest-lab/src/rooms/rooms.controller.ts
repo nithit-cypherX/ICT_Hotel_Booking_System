@@ -14,6 +14,14 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { Throttle } from '@nestjs/throttler';
 import { Role } from '@prisma/client';
@@ -24,6 +32,26 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
+// Reusable room schema for Swagger response bodies
+const ROOM_SCHEMA = {
+  type: 'object',
+  properties: {
+    id: { type: 'number', example: 1 },
+    name: { type: 'string', example: 'Deluxe Room 201' },
+    description: {
+      type: 'string',
+      example: 'Deluxe room with city view and balcony',
+    },
+    capacity: { type: 'number', example: 2 },
+    pricePerNight: { type: 'number', example: 2800 },
+    imageUrl: { type: 'string', example: '/images/room201.jpg' },
+    isActive: { type: 'boolean', example: true },
+    createdAt: { type: 'string', example: '2025-06-01T10:00:00.000Z' },
+    updatedAt: { type: 'string', example: '2025-06-01T10:00:00.000Z' },
+  },
+};
+
+@ApiTags('rooms')
 @Controller('rooms')
 // Cache all GET responses in this controller — served from Redis after first request
 @UseInterceptors(CacheInterceptor)
@@ -39,6 +67,29 @@ export class RoomsController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Create a new room - Admin only' })
+  @ApiResponse({
+    status: 201,
+    description: 'Room created successfully',
+    schema: ROOM_SCHEMA,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Validation failed',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Missing or Invalid token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin only',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests',
+  })
   create(@Body() createRoomDto: CreateRoomDto) {
     this.logger.log(`Admin is creating a new room: ${createRoomDto.name}`);
     return this.roomsService.create(createRoomDto);
@@ -50,6 +101,40 @@ export class RoomsController {
   // FR-27, FR-28, FR-29: public — guests can search available rooms
   // CacheInterceptor caches this response automatically (GET route)
   @Get('search')
+  @ApiOperation({
+    summary: 'Search available rooms by date range and optional capacity',
+  })
+  @ApiQuery({
+    name: 'checkIn',
+    required: true,
+    type: String,
+    description: 'Check-in date (ISO 8601)',
+    example: '2025-06-01T14:00:00.000Z',
+  })
+  @ApiQuery({
+    name: 'checkOut',
+    required: true,
+    type: String,
+    description: 'Check-out date (ISO 8601)',
+    example: '2025-06-05T12:00:00.000Z',
+  })
+  @ApiQuery({
+    name: 'capacity',
+    required: false,
+    type: Number,
+    description: 'Minimum guest capacity',
+    example: 2,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Available rooms for the selected dates',
+    schema: { type: 'array', items: ROOM_SCHEMA },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request — invalid or missing dates',
+  })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   search(
     @Query('checkIn') checkIn: string,
     @Query('checkOut') checkOut: string,
@@ -68,6 +153,16 @@ export class RoomsController {
   // FR-12: public — guests can view the list of active rooms
   // CacheInterceptor caches this response automatically (GET route)
   @Get()
+  @ApiOperation({ summary: 'Get all rooms' })
+  @ApiResponse({
+    status: 200,
+    description: 'Active rooms fetched successfully',
+    schema: { type: 'array', items: ROOM_SCHEMA },
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests',
+  })
   findAll() {
     this.logger.log('Fetching all active rooms');
     return this.roomsService.findAll();
@@ -76,6 +171,21 @@ export class RoomsController {
   // FR-13: public — guests can view a specific room's details
   // CacheInterceptor caches this response automatically (GET route)
   @Get(':id')
+  @ApiOperation({ summary: 'Get details of a specific room by ID' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the room', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Room found successfully',
+    schema: ROOM_SCHEMA,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Room not found',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests',
+  })
   findOne(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Fetching details for room ID: ${id}`);
     return this.roomsService.findOne(id);
@@ -85,6 +195,34 @@ export class RoomsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Update room details - Admin only' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the room', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Room updated successfully',
+    schema: ROOM_SCHEMA,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Validation failed',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Missing or Invalid token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin only',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Room not found',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests',
+  })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoomDto: UpdateRoomDto,
@@ -97,6 +235,33 @@ export class RoomsController {
   @Patch(':id/disable')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary:
+      'Deactivate a room - Admin only (soft delete, hides from public listing',
+  })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the room', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Room deactivated successfully',
+    schema: ROOM_SCHEMA,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized — missing or invalid token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — admin only',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Room not found',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests',
+  })
   disable(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Admin is disabling room ID: ${id}`);
     return this.roomsService.disable(id);
@@ -106,6 +271,30 @@ export class RoomsController {
   @Patch(':id/enable')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Re-activate a deactivated room — Admin only' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the room', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Room activated successfully',
+    schema: ROOM_SCHEMA,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized — Missing or Invalid token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — Admin only',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Room not found',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests',
+  })
   enable(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Admin is enabling room ID: ${id}`);
     return this.roomsService.enable(id);
@@ -116,6 +305,17 @@ export class RoomsController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Permanently delete a room — Admin only' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the room', type: Number })
+  @ApiResponse({ status: 200, description: 'Room deleted successfully' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized — Missing or Invalid token',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden — Admin only' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   remove(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Admin is deleting room ID: ${id}`);
     return this.roomsService.remove(id);
