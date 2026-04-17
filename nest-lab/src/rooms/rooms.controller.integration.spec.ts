@@ -4,6 +4,7 @@ import {
   ValidationPipe,
   UnauthorizedException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -156,7 +157,6 @@ describe('RoomsController (Integration)', () => {
 
     it('should return 400 if service throws BadRequestException for invalid dates', async () => {
       // Arrange
-      const { BadRequestException } = await import('@nestjs/common');
       mockRoomsService.searchAvailable.mockRejectedValue(
         new BadRequestException('checkIn must be before checkOut'),
       );
