@@ -89,7 +89,11 @@ export class AuthService {
       }
 
       // Role is included in the payload so RolesGuard can read it via JwtStrategy.validate()
-      const payload = { sub: user.id, username: user.username, role: user.role };
+      const payload = {
+        sub: user.id,
+        username: user.username,
+        role: user.role,
+      };
 
       this.logger.log(`User logged in successfully: ${user.username}`);
 
@@ -170,7 +174,10 @@ export class AuthService {
       // Hash the new password if one was provided
       const dataToUpdate: any = { ...updateProfileDto };
       if (updateProfileDto.password) {
-        dataToUpdate.password = await bcrypt.hash(updateProfileDto.password, 12);
+        dataToUpdate.password = await bcrypt.hash(
+          updateProfileDto.password,
+          12,
+        );
       }
 
       const updatedUser = await this.prisma.user.update({
@@ -182,7 +189,9 @@ export class AuthService {
       this.logger.log(`User #${userId} updated their profile successfully`);
       return updatedUser;
     } catch (error) {
-      this.logger.error(`updateMe failed for user #${userId}: ${error.message}`);
+      this.logger.error(
+        `updateMe failed for user #${userId}: ${error.message}`,
+      );
       throw error;
     }
   }

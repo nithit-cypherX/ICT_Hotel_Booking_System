@@ -1,0 +1,97 @@
+# =========================================================================
+# Hotel Booking REST API — Production docker-compose
+# -------------------------------------------------------------------------
+# Full stack: NGINX (public) → NestJS app → MySQL + Redis (internal)
+# One command brings it all up:   docker compose up -d --build
+#
+# Reads credentials from a .env file (see .env.example)
+# Satisfies: FR-35, FR-38, NFR-18, NFR-19, NFR-20
+# =========================================================================
+
+services:
+  # ---- NGINX: the only public-facing container -------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: icthotel-nginx
+    ports:
+      - "80:80"                    # only public port in the whole stack
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ---- MySQL 8.0 (internal only) ---------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: icthotel-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-ICTHotel}
+      MYSQL_USER:          ${MYSQL_USER:-hoteluser}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-hotelpass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    expose:
+      - "3306"                     # internal only — no public port
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout:  20s
+      retries:  10
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ---- Redis (internal only) -------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: icthotel-redis
+    expose:
+      - "6379"                     # internal only
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # ---- NestJS application (built from production Dockerfile) -----------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nest-app-prod
+    expose:
+      - "3000"                     # internal only — NGINX proxies to it
+    environment:
+      NODE_ENV:    production
+      PORT:        "3000"
+      DATABASE_URL: "mysql://${MYSQL_USER:-hoteluser}:${MYSQL_PASSWORD:-hotelpass}@mysql:3306/${MYSQL_DATABASE:-ICTHotel}"
+      REDIS_HOST:  redis
+      REDIS_PORT:  "6379"
+      JWT_SECRET:  ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+      start_period: 40s
+    restart: unless-stopped
+
+# ---- Named volumes (data persists across container restarts) ------------
+volumes:
+  mysql_data:
+  
+# ---- Private application network ---------------------------------------
+networks:
+  app-network:
+    driver: bridge
