@@ -142,9 +142,9 @@ src/
 
 > 📌 Clone from **GitHub Classroom** — link provided separately.
 ```bash
-clone https://github.com/MUICT-Class/682-project-group14.git
+git clone https://github.com/MUICT-Class/682-project-group14.git
 or
-clone https://github.com/nithit-cypherX/ICT_Hotel_Booking_System.git
+git clone https://github.com/nithit-cypherX/ICT_Hotel_Booking_System.git
 ```
 
 ```bash
