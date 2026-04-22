@@ -1,0 +1,43 @@
+# Node / build artefacts
+node_modules
+dist
+coverage
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Git & CI
+.git
+.gitignore
+.gitattributes
+.github
+
+# Local env files — never ship secrets into the image
+.env
+.env.local
+.env.*.local
+
+# Test artefacts
+test
+*.spec.ts
+*.integration.spec.ts
+*.e2e-spec.ts
+jest-*.json
+
+# Docs & misc
+README.md
+*.md
+!prisma/README.md
+
+# Docker files themselves don't need to be inside the image
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Local uploads (regenerated at runtime)
+uploads
