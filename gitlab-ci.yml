@@ -1,0 +1,56 @@
+# ============================================================
+# .gitlab-ci.yml — ICT Hotel Booking System
+# Pattern A: Pipeline SSH → server git pull → docker compose up
+# ============================================================
+#
+# ── Required GitLab CI/CD Variables ──────────────────────────
+# Set these in: GitLab → Project → Settings → CI/CD → Variables
+#
+#   SSH_PRIVATE_KEY   → your private key (masked)
+#   SERVER_HOST       → 10.34.112.175
+#   SERVER_USER       → student
+#   SERVER_PATH       → /home/student/group14
+#
+# ============================================================
+
+stages:
+  - deploy
+
+deploy-simple:
+  stage: deploy
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+  script:
+    - echo "Deploying to $SERVER_HOST ..."
+    - |
+      ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" << DEPLOY
+        set -e
+
+        echo "── Pull latest code ──"
+        cd $SERVER_PATH
+        git pull origin main
+
+        echo "── Build & restart containers ──"
+        cd $SERVER_PATH/nest-lab
+        docker compose build
+        docker compose up -d
+
+        echo "── Clean up old images ──"
+        docker image prune -f
+
+        echo "── Status ──"
+        docker compose ps
+
+        echo "── Deploy complete ──"
+      DEPLOY
+
+    - echo "Done."
