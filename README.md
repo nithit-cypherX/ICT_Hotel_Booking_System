@@ -199,7 +199,7 @@ npx prisma db seed
 | Username | Password | Role |
 |----------|----------|------|
 | `admin` | `12345678` | ADMIN |
-| `user01` | `12345678` | USER |
+| `guest` | `12345678` | USER |
 
 ---
 
